@@ -60,3 +60,11 @@ target/
 
 #Ipython Notebook
 .ipynb_checkpoints
+
+#Python Charm 
+.idea/
+
+# V-REP
+*.ttt 
+vrep.py
+vrepConst.py
