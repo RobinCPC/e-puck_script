@@ -63,10 +63,19 @@ if clientID != -1:
         us = 0
         val1 = 1
         ind = 0
+        # parameter for closed loop steering
+        ga = 3
+        h = 1
+        k = 6
+        xi = -1
+        yi = 1
+        phi = 0.75*math.pi  # degree
+
         while val1 > 0:
             ind += 1
             # Control Computation start -------------
             # Read position of the epuck position
+            x, y, theta1 = 0, 0, 0
             res, pos1 = vrep.simxGetObjectPosition(clientID, epuck1, -1, vrep.simx_opmode_oneshot_wait)
             if res == vrep.simx_return_ok:
                 x = pos1[0]  # (m)
@@ -74,16 +83,32 @@ if clientID != -1:
             # Read z-axis rotation of the epuck (radians)
             res, eularAngles1 = vrep.simxGetObjectOrientation(clientID, epuck1_base, -1, vrep.simx_opmode_oneshot_wait)
             if res == vrep.simx_return_ok:
-                theta1 = (180/math.pi)*eularAngles1[2]+90   # gamma=z-axis -> (degree)
-            u = 0.7
-            v = 0.1
-            if ind > 300:  # stop simulation set velocity to zero first
+                theta1 = eularAngles1[2]  # +90   # gamma=z-axis -> (degree)
+            print 'x = {0:f}, y = {1:f}, theta1 = {2:f}'.format(x, y, theta1*(180/math.pi))
+            # compute u (omega) and v (u in paper)
+            rx = xi + x
+            ry = yi + y
+            rph = phi + theta1
+            e = math.sqrt(rx**2+ry**2)
+            th = math.atan2(-ry,-rx)
+            al = th - rph
+
+            u = k*al + (ga/al)*(math.cos(al)*math.sin(al))*(al+h*th)
+            v = 1*ga*math.cos(al)*e
+            RUD = 30.   # speed reducer to limit u,v below 1.0
+            print 'rx= {0:f}, ry= {1:f}, rph= {2:f}'.format(rx, ry, rph)
+            print 'e= {0:f}, th= {1:f}, al= {2:f}'.format(e, th, al)
+            print 'u = {0:f}, v ={1:f}'.format(u/RUD, v/RUD)
+
+            # u = 0.7
+            # v = 0.1
+            if ind > 1000:  # stop simulation set velocity to zero first
                 val1 = 0
                 u = 0
                 v = 0
             # Control computation end -----------------
-            us = u  # [-1]
-            vs = v  # [-1]
+            us = u/RUD  # [-1]
+            vs = v/RUD  # [-1]
             vrep.simxSetFloatSignal(clientID, 'matlabRef_omega', us, vrep.simx_opmode_oneshot)
             vrep.simxSetFloatSignal(clientID, 'matlabRef_v', vs, vrep.simx_opmode_oneshot)
         # stop epuck
